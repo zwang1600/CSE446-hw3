@@ -2,6 +2,7 @@
 \usepackage{import}
 \usepackage{amsmath}
 \usepackage{setspace}
+\usepackage{mathtools}
 
 \subimport*{./}{macro}
 \setlength\parindent{0px}
@@ -59,7 +60,12 @@
 \pagebreak
 \begin{spacing}{3}{\bfseries\LARGE Question 2}\end{spacing}
 \textbf{(a.)}
+\begin{center}
+    $\includegraphics {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a2a.png}$
+\end{center}
+As shown, the support vectors are (0, 0.5), (2, 1), and (1, 2)
 
+\pagebreak
 \vspace{5mm}\textbf{(b.)}
 \begin{flushleft}
     From the support vectors and their corresponding labels, we know that:
@@ -99,7 +105,26 @@ And we plug $w$ back into $\begin{bmatrix}1 \\ 2 \\\end{bmatrix} w + b = -1$:
     w = \left[\frac{2}{5} \;\;\;\; -\frac{8}{5}\right]}
 \end{center}
 
+\pagebreak
 \vspace{5mm}\textbf{(c.)}
+\begin{flushleft}
+    Denote the two hyperplanes $x^T w + b = 1$ and $x^T w + b = -1$ as $H_1$ and $H_2$, respectively.\\
+    Let's pick a random point $x_0$ on $H_1$, we know that 
+    Now, the projection of $x_0$ onto $H_1$ is given by $P_H(x_0) = x_0 - \frac{w^Tx_0 - c}{||w||^2_2}w$ 
+    where the offset $c = w^Tx_0 = -1 - b$.\\
+    And since the distance between $H_1$ and $H_2$ is euqal to the distance $x_0$ on $H_1$ and it's projection on $H_2$,
+    we can just calculate $||x_0 - P_H(x_0)||_2$ to determine the distance between $H_1$ and $H_2$:
+\end{flushleft}
+\begin{align*}
+    \norm2{x_0 - P_H(x_0)}^2 &= \norm2{x_0 - \left(x_0 - \frac{w^Tx_0 - c}{||w||^2_2}w\right)}\\
+    &=\norm2{\frac{w^Tx_0 - (-1 - b)}{||w||^2_2}w} \\
+    &=\norm2{\frac{(1 - b) + 1 + b}{||w||^2_2}w} \\
+    &=\norm2{\frac{2}{w}} \\
+    &=\frac{2}{\norm2{w}} \\
+\end{align*}
+\begin{flushleft}
+    Therefore, the distance between the two separating hyperplanes is $\frac{2}{\norm2{w}}$
+\end{flushleft}
 
 
 % Quesetion 3
@@ -137,14 +162,48 @@ the summation above just becomes $e^{xx'}$, therefore:
 \end{center}
 
 
-
 % Quesetion 5
 \pagebreak
 \begin{spacing}{3}{\bfseries\LARGE Question 5}\end{spacing}
+\textbf{(b.)}
+\begin{center}
+    $\includegraphics[width=0.8\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a5b_mse.png}$
+    $\includegraphics[width=0.8\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a5b_ce.png}$
+\end{center}
 
+\vspace{5mm}\textbf{(c.)}
+\begin{center}
+    $\includegraphics[width=0.8\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a5c_mse.png}$
+    \\Best model for MSE loss: Hidden $\rightarrow$ ReLU $\rightarrow$ Hidden $\rightarrow$ Sigmoid (accuracy socre of 0.8764)
+    $\includegraphics[width=0.8\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a5c_ce.png}$
+    \\Best model for Cross Entropy loss: Hidden $\rightarrow$ Sigmoid $\rightarrow$ Hidden $\rightarrow$ ReLU (accuracy socre of 0.7398)
+
+\end{center}
 
 % Quesetion 6
 \pagebreak
 \begin{spacing}{3}{\bfseries\LARGE Question 6}\end{spacing}
+\textbf{(a.)}
+\begin{center}
+    $\includegraphics[width=0.7\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a6a.png}$
+\end{center}
+Loss: 0.09190159004156331\\
+Accuracy: 0.9736
+
+\vspace{5mm}\textbf{(b.)}
+\begin{center}
+    $\includegraphics[width=0.7\textwidth] {/Users/zuo/Desktop/School/SP 23/CSE 446/hw3/figures/a6b.png}$
+\end{center}
+Loss: 0.15115708102590775\\
+Accuracy: 0.9674
+
+\vspace{5mm}\textbf{(c.)}
+\begin{flushleft}
+    The number of parameters for F1 is 50890, and it's 26506 for F2.\\
+    In comparison to F2, F1 model is more complex, achieved higer accuracy and lower loss, and converged in less epoches.
+    Therefore in this case, I would say that F1(wide \& shallow) is better. 
+    However, we can only conclude that for this specific dataset. 
+    Both approaches have their own advantages and considerations, and their performance, again, depend on the specific problem and dataset we're dealing with.
+\end{flushleft}
 
 \end{document}

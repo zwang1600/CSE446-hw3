@@ -15,7 +15,6 @@ from typing import Any, Dict
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-import matplotlib.ticker as ticker
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -23,88 +22,6 @@ from utils import load_dataset, problem
 
 RNG = torch.Generator()
 RNG.manual_seed(446)
-
-
-class LinearRegression(nn.Module):
-    def __init__(self, input_dim, output_dim) -> None:
-        super().__init__()
-        self.linear = LinearLayer(input_dim, output_dim).double()
-
-    def forward(self, x):
-        return self.linear(x)
-    
-    def _get_name(self):
-        return "Linear Regression"
-
-
-class HiddenSigmoid(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim) -> None:
-        super(HiddenSigmoid, self).__init__()
-        self.hidden_layer = LinearLayer(input_dim, hidden_dim).double()
-        self.sigmoid = SigmoidLayer().double()
-        self.output_layer = LinearLayer(hidden_dim, output_dim).double()
-
-    def forward(self, x):
-        hidden_output = self.sigmoid(self.hidden_layer(x))
-        output = self.output_layer(hidden_output)
-        return output
-    
-    def _get_name(self):
-        return "Hidden -> Sigmoid"
-
-
-class HiddenReLU(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim) -> None:
-        super(HiddenReLU, self).__init__()
-        self.hidden_layer = LinearLayer(input_dim, hidden_dim).double()
-        self.relu = ReLULayer().double()
-        self.output_layer = LinearLayer(hidden_dim, output_dim).double()
-
-    def forward(self, x):
-        hidden_output = self.relu(self.hidden_layer(x))
-        output = self.output_layer(hidden_output)
-        return output
-    
-    def _get_name(self):
-        return "Hidden -> ReLU"
-
-
-class HiddenSigmoidHiddenReLU(nn.Module):
-    def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim) -> None:
-        super(HiddenSigmoidHiddenReLU, self).__init__()
-        self.hidden_layer1 = LinearLayer(input_dim, hidden_dim1).double()
-        self.sigmoid = SigmoidLayer().double()
-        self.hidden_layer2 = LinearLayer(hidden_dim1, hidden_dim2).double()
-        self.relu = ReLULayer().double()
-        self.output_layer = LinearLayer(hidden_dim2, output_dim).double()
-
-    def forward(self, x):
-        hidden_output1 = self.sigmoid(self.hidden_layer1(x))
-        hidden_output2 = self.relu(self.hidden_layer2(hidden_output1))
-        output = self.output_layer(hidden_output2)
-        return output
-    
-    def _get_name(self):
-        return "Hidden -> Sigmoid -> Hidden -> ReLU"
-
-
-class HiddenReLUHiddenSigmoid(nn.Module):
-    def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim) -> None:
-        super(HiddenReLUHiddenSigmoid, self).__init__()
-        self.hidden_layer1 = LinearLayer(input_dim, hidden_dim1).double()
-        self.relu = ReLULayer().double()
-        self.hidden_layer2 = LinearLayer(hidden_dim1, hidden_dim2).double()
-        self.sigmoid = SigmoidLayer().double()
-        self.output_layer = LinearLayer(hidden_dim2, output_dim).double()
-
-    def forward(self, x):
-        hidden_output1 = self.relu(self.hidden_layer1(x))
-        hidden_output2 = self.sigmoid(self.hidden_layer2(hidden_output1))
-        output = self.output_layer(hidden_output2)
-        return output
-    
-    def _get_name(self):
-        return "Hidden -> ReLU -> Hidden -> Sigmoid"
 
 
 @problem.tag("hw3-A")
@@ -128,7 +45,18 @@ def accuracy_score(model: nn.Module, dataloader: DataLoader) -> float:
         - This is similar to CrossEntropy accuracy_score function,
             but there will be differences due to slightly different targets in dataloaders.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    n = 0
+    correct = 0
+
+    with torch.no_grad():
+        for observation, target in dataloader:
+            prediction = model(observation)
+            y_hat = torch.argmax(prediction.data, 1)
+            y = torch.argmax(target.data, 1)
+            correct += (y_hat == y).sum().item()
+            n += target.size(0)
+
+    return correct / n
 
 
 @problem.tag("hw3-A")
@@ -171,24 +99,26 @@ def mse_parameter_search(
             }
     """
     training_history = {}
-    models = [
-        LinearRegression(2, 1),
-        HiddenSigmoid(2, 2, 1),
-        HiddenReLU(2, 2, 1),
-        HiddenSigmoidHiddenReLU(2, 2, 2, 1),
-        HiddenReLUHiddenSigmoid(2, 2, 2, 1)
-    ]
-    train_loader = DataLoader(dataset_train)
-    val_loader = DataLoader(dataset_val)
+    models = {
+        'Linear Regression': torch.nn.Sequential(LinearLayer(2, 2, RNG).double()),
+        'Hidden -> Sigmoid': torch.nn.Sequential(LinearLayer(2, 2, RNG).double(), SigmoidLayer().double(), LinearLayer(2, 2, RNG).double()),
+        'Hidden -> ReLU': torch.nn.Sequential(LinearLayer(2, 2, RNG).double(), ReLULayer().double(), LinearLayer(2, 2, RNG).double()),
+        'Hidden -> Sigmoid -> Hidden -> ReLU': torch.nn.Sequential(LinearLayer(2, 2, RNG).double(), SigmoidLayer().double(), LinearLayer(2, 2, RNG).double(), ReLULayer().double(), LinearLayer(2, 2, RNG).double()),
+        'Hidden -> ReLU -> Hidden -> Sigmoid': torch.nn.Sequential(LinearLayer(2, 2, RNG).double(), ReLULayer().double(), LinearLayer(2, 2, RNG).double(),SigmoidLayer().double(), LinearLayer(2, 2, RNG).double())
+    }
     criterion = MSELossLayer()
-    epochs = 2
+    batch_size = 32
+    lr = 0.004
+    epochs = 100
 
-    for model in models:
-        optimizer = SGDOptimizer(model.parameters(), lr=1e-5)
+    for name, model in models.items():
+        train_loader = DataLoader(dataset_train, batch_size=batch_size)
+        val_loader = DataLoader(dataset_val, batch_size=batch_size)
+        optimizer = SGDOptimizer(model.parameters(), lr)
+
         result = train(train_loader, model, criterion, optimizer, val_loader, epochs)
-        result["model"] = model
-        model_name = model._get_name()
-        training_history[model_name] = result
+        result['model'] = model
+        training_history[name] = result
 
     return training_history
 
@@ -222,13 +152,19 @@ def main():
     mse_configs = mse_parameter_search(dataset_train, dataset_val)
     
     for k, v in mse_configs.items():
-        plot_model_guesses(DataLoader(dataset_test), v['model'], k)
-        # plt.plot(v['train'], label=f'{k} train')
-        # plt.plot(v['val'], label=f'{k} validation')
-    # ax = plt.gca()
-    # ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    # plt.legend(loc='best', prop={'size': 6})
-    # plt.show()
+        plt.plot(v['train'], label=f'{k} train')
+        plt.plot(v['val'], label=f'{k} validation')
+    plt.ylabel('MSE Loss')
+    plt.xlabel('Epochs')
+    plt.legend(loc='best', prop={'size': 6})
+    plt.show()
+
+    best_model = min(mse_configs.items(), key=lambda x: min(x[1]['val']))
+    print(best_model)
+    plot_model_guesses(DataLoader(dataset_test, batch_size=32), best_model[1]['model'])
+    
+    accuracy = accuracy_score(best_model[1]['model'], DataLoader(dataset_test, batch_size=32))
+    print(accuracy)
 
 
 def to_one_hot(a: np.ndarray) -> np.ndarray:

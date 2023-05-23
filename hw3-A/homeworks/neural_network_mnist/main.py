@@ -11,10 +11,11 @@ from torch.nn.functional import cross_entropy, relu
 from torch.nn.parameter import Parameter
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm
 
 from utils import load_dataset, problem
 
-
+    
 class F1(Module):
     @problem.tag("hw3-A", start_line=1)
     def __init__(self, h: int, d: int, k: int):
@@ -60,10 +61,9 @@ class F1(Module):
         Returns:
             torch.Tensor: FloatTensor of shape (n, k). Prediction.
         """
-        predict = relu(self.W_0 @ x.T + self.b_0.unsqueeze(1))
-        predict = relu(self.W_1 @ predict + self.b_1.unsqueeze(1))
-
-        return predict.T
+        predict = relu(torch.matmul(x, self.W_0.t()) + self.b_0)
+        predict = torch.matmul(predict, self.W_1.t()) + self.b_1
+        return predict
 
 
 class F2(Module):
@@ -115,11 +115,10 @@ class F2(Module):
         Returns:
             torch.Tensor: FloatTensor of shape (n, k). Prediction.
         """
-        predict = relu(self.W_0 @ x.T + self.b_0.unsqueeze(1))
-        predict = relu(self.W_1 @ predict + self.b_1.unsqueeze(1))
-        predict = self.W_2 @ predict + self.b_2.unsqueeze(1)
-
-        return predict.T
+        predict = relu(torch.matmul(x, self.W_0.t()) + self.b_0)
+        predict = relu(torch.matmul(predict, self.W_1.t()) + self.b_1)
+        predict = torch.matmul(predict, self.W_2.t()) + self.b_2
+        return predict
 
 
 @problem.tag("hw3-A")
@@ -143,20 +142,23 @@ def train(model: Module, optimizer: Adam, train_loader: DataLoader) -> List[floa
     accuracy = 0
 
     while accuracy < 0.99:
-        epoch_train_loss = 0
-        correct_prediction = 0
-        
-        for _, (x, y) in enumerate(train_loader):
+        print(accuracy)
+        epoch_training_loss = 0
+        correct = 0
+        total = 0
+
+        for x, y in tqdm(train_loader):
             optimizer.zero_grad()
-            y_hat = model.forward(x)
+            y_hat = model(x)
             loss = cross_entropy(y_hat, y)
             loss.backward()
             optimizer.step()
-            epoch_train_loss += loss.item()
-            if torch.argmax(y_hat) == y: correct_prediction += 1
-        
-        accuracy = correct_prediction / n
-        training_loss.append(epoch_train_loss / n)
+            epoch_training_loss += loss.item()
+            correct += (torch.argmax(y_hat, dim=1) == y).sum().item()
+            total += y.size(0)
+
+        training_loss.append(epoch_training_loss / n)
+        accuracy = correct / total
 
     return training_loss
 
@@ -184,16 +186,44 @@ def main():
     h1 = 64
     h2 = 32
     k = 10
-    # F2(h2, h2, d, k)
+
     # F1(h1, d, k)
-    train_loader = DataLoader(TensorDataset(x[:500], y[:500]))
-    for model in [F2(h2, h2, d, k)]:
-        optimizer = Adam(model.parameters(), lr=1e-3)
-        training_loss = train(model, optimizer, train_loader)
-        plt.plot(training_loss)
-        plt.ylabel('Training Loss')
-        plt.xlabel('Epochs')
-        plt.show()
+    # F2(h2, h2, d, k)
+    model = F1(h1, d, k)
+    train_data = TensorDataset(x, y)
+    test_data = TensorDataset(x_test, y_test)
+    train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=32, shuffle=True)
+
+    optimizer = Adam(model.parameters())
+    training_loss = train(model, optimizer, train_loader)
+    plt.plot(training_loss)
+    plt.ylabel('Training Loss')
+    plt.xlabel('Epochs')
+    plt.title('Loss of F2')
+    plt.show()
+
+    # Evaluate on test dataset
+    loss = 0
+    n = 0
+    correct = 0
+    
+    with torch.no_grad():
+        for observation, target in test_loader:
+            prediction = model(observation)
+            y_hat = torch.argmax(prediction.data, 1)
+            correct += (y_hat == target).sum().item()
+            n += target.size(0)
+            loss += cross_entropy(prediction, target).item()
+            
+    loss /= len(test_loader)
+    accuracy = correct / n
+
+    print(f'Loss: {loss}')
+    print(f'Accuracy: {accuracy}')
+
+    num_of_params = sum(param.numel() for param in model.parameters())
+    print(f'Number of parameters: {num_of_params}')
 
 
 if __name__ == "__main__":

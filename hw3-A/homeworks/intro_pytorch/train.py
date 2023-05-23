@@ -5,6 +5,7 @@ import torch
 from matplotlib import pyplot as plt
 from torch import nn, optim
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from utils import problem
 
@@ -53,34 +54,38 @@ def train(
     train_loss = []
     val_loss = []
 
-    for epoch in range(epochs):
-        # calculate the training loss  
-        epoch_train_loss = 0      
+    min_loss = float('inf')
+    opt_state_dict = None
 
-        for _, (x, y) in enumerate(train_loader):
-            optimizer.zero_grad()               # zero the gradient buffers
-            y_hat = model(x)                    # predict 
-            loss = criterion(y_hat, y)          # calculates the loss
+    for _ in range(epochs):
+        epoch_train_loss = 0
+
+        for x, y in tqdm(train_loader):
+            optimizer.zero_grad()
+            y_hat = model(x)
+            loss = criterion(y_hat, y)
             loss.backward()
-            optimizer.step()                    # updates
-            epoch_train_loss += loss.item()     # sum up the losses across batches
-        
+            optimizer.step() 
+            epoch_train_loss += loss.item()
+            
         train_loss.append(epoch_train_loss / len(train_loader))
 
-        if val_loader is not None:
 
-            # calculate the validation loss
+        if val_loader:
             epoch_val_loss = 0
 
-            for i, (x, y) in enumerate(val_loader):
-                optimizer.zero_grad()               # zero the gradient buffers
-                y_hat = model(x)                    # predict 
-                loss = criterion(y_hat, y)          # calculates the loss
-                loss.backward()
-                optimizer.step()                    # updates
-                epoch_val_loss += loss.item()       # sum up the losses across batches
+            for x, y in tqdm(val_loader):
+                y_hat = model(x)
+                loss = criterion(y_hat, y)
+                epoch_val_loss += loss.item()
         
             val_loss.append(epoch_val_loss / len(val_loader))
+            if min_loss > epoch_val_loss:
+                min_loss = epoch_val_loss
+                opt_state_dict = model.state_dict()
+        
+        if opt_state_dict:
+            model.load_state_dict(opt_state_dict)
 
     return {"train": train_loss, "val": val_loss}
 
